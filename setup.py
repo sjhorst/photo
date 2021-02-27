@@ -30,7 +30,7 @@ if subcheck:
     __version__ = subcheck.group(0)
 else:
     __version__ = __full_version__
-with open('pynance/version', 'w') as fid:
+with open('photo/version', 'w') as fid:
     fid.write(__full_version__)
 
 setup(

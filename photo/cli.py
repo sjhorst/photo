@@ -4,17 +4,20 @@ def main_entry():
     description='Manage photos my way'
     parser = argparse.ArgumentParser(description=description)
 
+    descr = 'The following sub-sommands will perform different photo actions.'
     action = parser.add_subparsers(title='Available Sub-Commands',
-            description='The following sub-sommands will perform different photo actions.',
+            help=descr,
+            description=descr,
             dest='action',
             )
     action.required = True
 
     # Parser information for the check action
-    descr = 'Tag the photo or video with EXIF metadata',
+    descr = 'Tag the photo or video with EXIF metadata'
     tag = action.add_parser('tag', help=descr, description=descr)
 
-    tag.add_argument('tags', nargs='*', help='The name of the tag to add or subtract')
+    tag.add_argument('filename', help='The filename to modify')
+    tag.add_argument('tags', nargs=argparse.REMAINDER, action='store', help='The name of the tag(s) to add or subtract')
 
     # The process action will take photos from an inbox and file it in the
     # photo repository
@@ -25,19 +28,103 @@ def main_entry():
     descr = 'Display meta data of a specified photo on screen'
     meta = action.add_parser('meta', help=descr, description=descr)
 
-    meta.add_argument('fileglob', help='The filename or glob of photos or videos to show')
+    meta.add_argument('fileglob', nargs='*', help='The filename or glob of photos or videos to show')
+
+    descr = 'Print the current version of the tool and exit'
+    ver = action.add_parser('version', help=descr, description=descr)
 
     args = parser.parse_args()
 
     try:
         if args.action.lower() == 'tag':
-            pass
+            cli_tag(args.filename, args.tags)
+
         elif args.action.lower() == 'process':
             pass
+
         elif args.action.lower() == 'meta':
-            pass
+            cli_meta(args.fileglob)
+
+        elif args.action.lower() == 'version':
+            from os.path import join, dirname
+            import os
+            import subprocess
+
+            with open(join(dirname(__file__), 'version'), 'r') as fid:
+                print('Photo Version: {0}'.format(fid.readline()))
+
         else:
             raise ValueError('Unrecognized action, "{0}"'.format(args.action))
 
     except Exception as err:
         raise
+
+
+def cli_meta(fileglob):
+    """
+    Display meta data to screen
+
+    """
+    import subprocess
+
+    if not hasattr(fileglob, '__len__'):
+        fileglob = [fileglob]
+    if len(fileglob) == 0:
+        raise ValueError('No files found')
+
+    for filename in fileglob:
+        subprocess.run(['exiftool', '-common', '-imagedescription', filename])
+        print('')
+
+
+def cli_tag(filename, arg_list):
+    """
+    Add or remove EXIF tags from a file
+
+    + or no prefix adds tags
+
+    - removes tags
+
+    Example:
+    photo tag IMG2133.jpg +travel +steve -sailing
+
+    """
+    import subprocess
+    from .exif import get_tags, update_tags
+
+    if len(arg_list) == 0:
+        raise ValueError('No tags provided')
+
+    cur_tags = get_tags(filename)
+    tag_list = []
+    for arg in arg_list:
+        tag_elem = arg.split(',')
+        for tag in tag_elem:
+            if tag != '':
+                tag_list.append(tag)
+
+    for tag in tag_list:
+        if tag[0] == '-':
+            add_str = '-'
+            tag_str = tag[1:]
+        elif tag[0] == '+':
+            add_str = '+'
+            tag_str = tag[1:]
+        else:
+            add_str = '+'
+            tag_str = tag
+
+        if tag_str in cur_tags and add_str == '+':
+            print('Tag already exists')
+            continue
+        elif tag_str not in cur_tags and add_str == '-':
+            print('Tag does not exist')
+            continue
+        elif add_str == '+':
+            cur_tags.append(tag_str)
+        elif add_str == '-':
+            cur_tags.remove(tag_str)
+        else:
+            raise ValueError('Malformed tag')
+
+    update_tags(filename, cur_tags)
