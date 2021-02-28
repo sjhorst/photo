@@ -1,0 +1,1 @@
+This is not a photo or video. It should not show up in photo operations.

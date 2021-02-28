@@ -65,16 +65,21 @@ def cli_meta(fileglob):
     Display meta data to screen
 
     """
-    import subprocess
+    from .exif import list_metadata
 
-    if not hasattr(fileglob, '__len__'):
+    if isinstance(fileglob, str):
         fileglob = [fileglob]
     if len(fileglob) == 0:
         raise ValueError('No files found')
 
+    count = 0
     for filename in fileglob:
-        subprocess.run(['exiftool', '-common', '-imagedescription', filename])
-        print('')
+        status = list_metadata(filename)
+        if status == 0:
+            count += 1
+
+    print('Displayed meta data for {0} images'.format(count))
+    return count
 
 
 def cli_tag(filename, arg_list):
@@ -97,6 +102,7 @@ def cli_tag(filename, arg_list):
 
     cur_tags = get_tags(filename)
     tag_list = []
+    arg_list = arg_list.split(' ')
     for arg in arg_list:
         tag_elem = arg.split(',')
         for tag in tag_elem:
