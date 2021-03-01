@@ -1,0 +1,5 @@
+# The directory of the root repository
+repo_dir: ~/photos
+
+# The format to use for filenames
+name_format: %Y%b%d_%n

@@ -33,6 +33,24 @@ else:
 with open('photo/version', 'w') as fid:
     fid.write(__full_version__)
 
+
+def install_config():
+    from os.path import join, dirname
+    import shutil
+
+    cfg_path_name = 'photo'
+    code_path = join(dirname(__file__), 'config')
+
+    home_dir = os.path.expanduser('~')
+    root_config = join(home_dir, '.config')
+    if not os.path.isdir(join(root_config, cfg_path_name)):
+        os.mkdir(join(root_config, cfg_path_name), 0o755)
+    install_path = join(root_config, cfg_path_name)
+
+    for file in os.listdir(code_path):
+        shutil.copy(join(code_path, file), install_path)
+
+
 setup(
     name="photo",
     version=__version__,
@@ -70,3 +88,5 @@ setup(
     install_requires = [],
 
 )
+
+install_config()

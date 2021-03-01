@@ -18,7 +18,7 @@ def list_metadata(filename):
     from os.path import exists
 
     if not exists(filename):
-        raise IOError('Requested filename does not exist')
+        raise IOError('Requested file does not exist')
 
     valid_ext = ['jpg', 'png', 'gif', 'mov', 'mpg', 'avi']
     file_ext = filename.split('.')[-1]
@@ -50,6 +50,10 @@ def get_metadata(filename, tag):
     """
     import subprocess
     import re
+    from os.path import exists
+
+    if not exists(filename):
+        raise IOError('Requested file does not exist')
 
     stdout = subprocess.check_output(['exiftool', filename, '-{0}'.format(tag)])
     if stdout == bytes():
@@ -76,6 +80,10 @@ def get_tags(filename):
     """
     import subprocess
     import re
+    from os.path import exists
+
+    if not exists(filename):
+        raise IOError('Requested file does not exist')
 
     result = subprocess.check_output(['exiftool', filename, '-imagedescription'])
     if result != bytes():
@@ -108,6 +116,10 @@ def update_tags(filename, tag_list):
 
     """
     import subprocess
+    from os.path import exists
+
+    if not exists(filename):
+        raise IOError('Requested file does not exist')
 
     # Make sure no comma characters are present in tags
     for idx in range(len(tag_list)):
@@ -147,3 +159,72 @@ def search_tags(filename, tag_name):
         return True
     else:
         return False
+
+
+def get_filename(filename, fmt=''):
+    """
+    Get a standardized file name for the photo
+
+    Arguments
+    ---------
+    filename : str
+        The current filename of the photo or video
+
+    Keyword Arguments
+    -----------------
+    fmt : str
+        The format to use for the filename. Typically pulled from the
+        preferences settings in the configuration file.
+
+    Returns
+    -------
+    tuple
+        A tuple of the result, first value is a string of the new filename
+        while the second value is a list of the directory within the repository
+
+    """
+    import subprocess
+    import re
+    from datetime import datetime
+    from os.path import exists
+    from .utilities import sha1_hash
+
+    if not exists(filename):
+        raise IOError('Requested file does not exist')
+
+    tag_names = ['-CreateDate',
+                 '-Model',
+                ]
+
+    stdout = subprocess.check_output(['exiftool', filename]+tag_names)
+    if stdout == bytes():
+        name = None
+        loc = None
+    else:
+        raw_str = stdout.decode('utf-8')
+        create_date_match = re.search('(?<=Create Date)[\s:]*(.*)(?=\n)', raw_str)
+        if create_date_match is not None:
+            create_date = datetime.strptime(create_date_match.group(1), '%Y:%m:%d %H:%M:%S')
+        else:
+            raise ValueError('No creation date. Cannot create filename.')
+        camera_model_match = re.search('(?<=Camera Model Name)[\s:]*(.*)(?=\n)', raw_str)
+        if camera_model_match is not None:
+            camera_model = camera_model_match.group(1)
+        else:
+            camera_model_match = re.search('(?<=Model)[\s:]*(.*)(?=\n)', raw_str)
+            if camera_model_match is not None:
+                camera_model = camera_model_match.group(1)
+            else:
+                camera_model = 'unknown'
+
+        ext = filename.split('.')[-1]
+
+        sha1 = sha1_hash(filename)
+        name = '{0}_{1}_{2}.{3}'.format(create_date.strftime('%Y%b%d_%H:%M:%S'), 
+                                    camera_model.replace(' ', '_'),
+                                    sha1[:6],
+                                    ext) 
+        loc = [create_date.strftime('%Y'), create_date.strftime('%m')]
+
+    return name, loc
+

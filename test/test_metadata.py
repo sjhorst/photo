@@ -60,3 +60,39 @@ def test_cli_meta():
     fileglob = glob.glob(join(data_dir, '*.jpg'))
     count = cli_meta(fileglob)
     assert count == 5
+
+
+def test_filename_creation():
+    """
+    Test using the metadata to create a standardized filename
+
+    """
+    import photo
+    from os.path import dirname, join
+    import os
+
+    test_root = dirname(__file__)
+    data_dir = join(test_root, 'data')
+    samples = os.listdir(data_dir)
+
+    for img in samples:
+        name, loc = photo.get_filename(join(data_dir, img))
+        
+        if img == 'test_canon_photo.jpg':
+            assert name == '2018Feb17_01:41:09_Canon_EOS_REBEL_T2i_6e55db.jpg'
+            assert loc == ['2018', '02']
+        elif img == 'test_gopro_photo.jpg':
+            assert name == '2020Oct18_00:00:00_unknown_866525.jpg'
+            assert loc == ['2020', '10']
+        elif img == 'test_iphone_photo.jpg':
+            assert name == '2015Oct17_14:06:28_iPhone_5s_1e0440.jpg'
+            assert loc == ['2015', '10']
+        elif img == 'test_iphone_video.mov':
+            assert name == '2016Aug10_17:17:36_iPhone_5s_cdbaf7.mov'
+            assert loc == ['2016', '08']
+        elif img == 'test_unknown_photo.jpg':
+            assert name == '2020Oct18_00:00:00_DSC-H20_0b2b0a.jpg'
+            assert loc == ['2020', '10']
+        elif img == 'test_scanned_photo.jpg':
+            assert name is None
+            assert loc is None
