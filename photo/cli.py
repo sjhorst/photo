@@ -24,6 +24,8 @@ def main_entry():
     descr = 'Process photos from the inbox and insert them in the repository'
     proc = action.add_parser('process', help=descr, description=descr)
 
+    proc.add_argument('path', help='The directory or filenames to process')
+
     # Meta action will print meta data including tags to screen
     descr = 'Display meta data of a specified photo on screen'
     meta = action.add_parser('meta', help=descr, description=descr)
@@ -40,7 +42,7 @@ def main_entry():
             cli_tag(args.filename, args.tags)
 
         elif args.action.lower() == 'process':
-            pass
+            cli_process(args.path)
 
         elif args.action.lower() == 'meta':
             cli_meta(args.fileglob)
@@ -134,3 +136,25 @@ def cli_tag(filename, arg_list):
             raise ValueError('Malformed tag')
 
     update_tags(filename, cur_tags)
+
+
+def cli_process(path):
+    """
+    Process photos and add them to the directory repository
+
+    Arguments
+    ---------
+    path : str
+        The path of the data to process. Can be a filename, directory, or glob.
+
+    """
+    from os.path import join, isdir
+    from glob import glob
+    import os
+
+    if isdir(path):
+        files = os.listdir(path)
+    else:
+        files = glob(path)
+
+    import pudb; pudb.set_trace()
