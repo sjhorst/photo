@@ -1,0 +1,44 @@
+#
+
+# build time
+[build-system]
+requires = ["setuptools", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+# install time
+[project]
+name = "photo"
+description = "Process the photos and videos for Stephen Horst"
+readme = "README.md"
+authors = [
+    { name = "Stephen Horst", email = "sjhorst@radixpoint.org" },
+]
+maintainers = [{ name = "Stephen Horst", email = "sjhorst@radixpoint.org" }]
+requires-python = ">=3.10.0"
+keywords = ["photos", "videos"]
+license = { text = "GPL-3" }
+dependencies = [
+    "numpy",
+    "pillow",
+    "pyheif",
+]
+dynamic = ["version"]
+
+# package discovery
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["photo"]
+
+# data files
+[tool.setuptools.package-data]
+tablet = ["version.txt"]
+
+[tool.setuptools_scm]
+write_to = "photo/version.py"
+local_scheme = "node-and-date"
+
+# entry points
+[project.scripts]
+photo = "photo.cli:main_entry"
+
+# end of file

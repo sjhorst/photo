@@ -12,28 +12,38 @@ def main_entry():
             )
     action.required = True
 
-    # Parser information for the check action
+    # TAG action: add a tag to a photo file
+    # =====================================
     descr = 'Tag the photo or video with EXIF metadata'
     tag = action.add_parser('tag', help=descr, description=descr)
 
     tag.add_argument('filename', help='The filename to modify')
     tag.add_argument('tags', nargs=argparse.REMAINDER, action='store', help='The name of the tag(s) to add or subtract')
 
+    # ADD action: add a photo to the repository
+    # =========================================
     # The process action will take photos from an inbox and file it in the
     # photo repository
     descr = 'Process photos from the inbox and insert them in the repository'
-    proc = action.add_parser('process', help=descr, description=descr)
+    proc = action.add_parser('add', help=descr, description=descr)
 
-    proc.add_argument('path', help='The directory or filenames to process')
+    proc.add_argument('path', nargs="*", help='The directory or filenames to process')
 
+    # META action: print the meta data for a photo
+    # ============================================
     # Meta action will print meta data including tags to screen
     descr = 'Display meta data of a specified photo on screen'
     meta = action.add_parser('meta', help=descr, description=descr)
 
     meta.add_argument('fileglob', nargs='*', help='The filename or glob of photos or videos to show')
 
+    # VERSION action: Print the version of the software and exit
+    # ==========================================================
     descr = 'Print the current version of the tool and exit'
     ver = action.add_parser('version', help=descr, description=descr)
+
+    # END action definition
+    # Move on to parsing
 
     args = parser.parse_args()
 
@@ -41,8 +51,8 @@ def main_entry():
         if args.action.lower() == 'tag':
             cli_tag(args.filename, args.tags)
 
-        elif args.action.lower() == 'process':
-            cli_process(args.path)
+        elif args.action.lower() == 'add':
+            cli_add(args.path)
 
         elif args.action.lower() == 'meta':
             cli_meta(args.fileglob)
@@ -76,6 +86,7 @@ def cli_meta(fileglob):
 
     count = 0
     for filename in fileglob:
+        import pudb; pudb.set_trace()
         status = list_metadata(filename)
         if status == 0:
             count += 1
@@ -138,9 +149,9 @@ def cli_tag(filename, arg_list):
     update_tags(filename, cur_tags)
 
 
-def cli_process(path):
+def cli_add(path):
     """
-    Process photos and add them to the directory repository
+    Add photos to the directory repository
 
     Arguments
     ---------
@@ -148,13 +159,39 @@ def cli_process(path):
         The path of the data to process. Can be a filename, directory, or glob.
 
     """
-    from os.path import join, isdir
-    from glob import glob
+    from pathlib import Path
     import os
+    import shutil
+    from .utilities import compute_image_checksum, get_photo_date
+    from .config import get_global_config
 
-    if isdir(path):
-        files = os.listdir(path)
-    else:
-        files = glob(path)
+    cfg = get_global_config()
+    repo_path = Path(cfg["repo"]["path"])
 
-    import pudb; pudb.set_trace()
+    for file in path:
+        file_obj = Path(file)
+        if file_obj.is_dir():
+            path_files = os.listdir(file_obj)
+            import pudb; pudb.set_trace()
+
+        # Compute the checksum of the file
+        checksum = compute_image_checksum(file_obj)
+
+        # Get the date the photo was taken
+        date = get_photo_date(file_obj)
+        if date is None:
+            import pudb; pudb.set_trace()
+
+        # Create new filename
+        canonical_file = Path(f"{date.strftime("%y%m%d_%H%M%S")}_{checksum[:8]}{file_obj.suffix}")
+        canonical_folder = Path(f"{date.year}/{date.month:02}")
+
+        # Rename file to the new filename
+        insert_path = repo_path / canonical_folder / canonical_file
+
+        if not insert_path.exists():
+            os.makedirs(repo_path / canonical_folder, exist_ok=True)
+            shutil.copy2(file_obj, insert_path)
+            print(f"Added {canonical_file} (from {file_obj}) to the photo repository")
+        else:
+            print(f"File {canonical_file} (from {file_obj}) already exists in the repository")

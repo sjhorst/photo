@@ -228,3 +228,41 @@ def get_filename(filename, fmt=''):
 
     return name, loc
 
+
+def calculate_checksum(image_path):
+    """
+    Calculate the checksum on an image
+
+    This computes the checksum only on the image data, not on the meta data.
+    This allows you to add tags and otherwise alter meta data but still know
+    that the underlying image is identical to another in the repo already
+
+    Arguments
+    ---------
+    image_path : str
+        The path to the image to be computed
+
+    Returns
+    -------
+    str
+        The checksum of the image being computed
+
+    """
+    import hashlib
+    from PIL import Image
+
+    # Open the image using Pillow
+    img = Image.open(image_path)
+
+    # Get the image data (content only, no metadata)
+    image_data = list(img.getdata())
+
+    # Calculate the MD5 hash of the image content
+    md5_hash = hashlib.md5()
+    for pixel in image_data:
+        if hasattr(pixel, 'tobytes'):  # Check if pixel is a tuple
+            md5_hash.update(pixel.tobytes())
+        else:  # Pixel is a single value (e.g., RGB or grayscale)
+            md5_hash.update(str(pixel).encode('utf-8'))
+
+    return md5_hash.hexdigest()
