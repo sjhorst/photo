@@ -169,6 +169,7 @@ def cli_add(path):
     from zoneinfo import ZoneInfo
 
     tzla = ZoneInfo("America/Los_Angeles")
+    default_date = datetime(1970, 1, 1, tzinfo=tzla)
 
     cfg = get_global_config()
     repo_path = Path(cfg["repo"]["path"])
@@ -178,8 +179,9 @@ def cli_add(path):
     duplicate_files = 0
     skipped_files = 0
     total_files = 0
+    missing_date = 0
     first_date = datetime.now(tzla)
-    last_date = datetime(1970, 1, 1, tzinfo=tzla)
+    last_date = default_date
 
     # Process each file
     total_files = len(path)
@@ -206,16 +208,14 @@ def cli_add(path):
             continue
 
         if date is None:
-            date = datetime(1970,1,1, tzinfo=tzla)
+            date = default_date
+            missing_date += 1
 
         # Check for earliest or latest date
-        try:
-            if date < first_date:
-                first_date = date
-            if date > last_date:
-                last_date = date
-        except:
-            import pudb; pudb.set_trace()
+        if date < first_date and date != default_date:
+            first_date = date
+        if date > last_date:
+            last_date = date
 
         # Create new filename
         canonical_file = Path(f"{date.strftime("%y%m%d_%H%M%S")}_{checksum[:8]}{file_obj.suffix}")
@@ -240,4 +240,5 @@ def cli_add(path):
     print(f"{added_files} files added to the photo repository")
     print(f"{duplicate_files} files skipped as duplicates")
     print(f"{skipped_files} files skipped as unrecognized format")
+    print(f"{missing_date} files did not have date metadata")
     print(f"{total_files - (added_files+duplicate_files+skipped_files)} files unaccounted")
