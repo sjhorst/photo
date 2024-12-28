@@ -8,7 +8,7 @@ def sha1_hash(filename):
 
     return hash_sha1.hexdigest()
 
-def compute_image_checksum(image_path):
+def compute_photo_checksum(image_path):
     """
     Compute the image hash on the picture data only
 
@@ -47,10 +47,12 @@ def compute_image_checksum(image_path):
 
         # Convert the image to a numpy array
         img_data = np.array(image)
-    else:
+    elif image_path.suffix.upper() in [".JPG", ".PNG", ".JPEG"]:
         # Open the image file
         with Image.open(image_path) as img:
             img_data = np.array(img)
+    else:
+        raise TypeError(f"Unrecognized photo type {image_path.suffix}")
     
     # Ensure the image data is in a consistent format
     img_data = img_data.tobytes()
@@ -60,6 +62,11 @@ def compute_image_checksum(image_path):
     
     return checksum
 
+
+def compute_video_checksum(image_path):
+    return sha1_hash(image_path)
+
+
 def get_photo_date(image_path):
     """
     Get the date a photo was taken from the meta data
@@ -68,22 +75,97 @@ def get_photo_date(image_path):
     from PIL import Image
     from PIL.ExifTags import TAGS, GPSTAGS
     from datetime import datetime
+    import pyheif
+    import piexif
 
-    # Open the image file
-    with Image.open(image_path) as img:
-        # Get EXIF data
-        exif_data = img._getexif()
+    if image_path.suffix.upper() == ".HEIC":
+        heif_file = pyheif.read(image_path)
+        metadata = heif_file.metadata or []
 
-        if not exif_data:
-            return None
+        # Look for the XML metadata
+        for meta in metadata:
+            if meta['type'].lower() == 'exif':
+                # Load the EXIF data
+                exif_dict = piexif.load(meta["data"])
+                
+                # Get the DateTimeOriginal tag value
+                date_id = piexif.ExifIFD.DateTimeOriginal
+                if date_id in exif_dict['Exif']:
+                    exif_date = exif_dict['Exif'][date_id]
+                    if exif_date:
+                        return datetime.strptime(exif_date.decode("UTF-8"), "%Y:%m:%d %H:%M:%S")
+
+    elif image_path.suffix.upper() in [".JPG", ".PNG", ".JPEG"]:
+        # Open the image file for 
+        with Image.open(image_path) as img:
+            # Get EXIF data
+            exif_data = img.getexif()
 
         # Extract the date taken from EXIF data
         for tag, value in exif_data.items():
-            tag_name = TAGS.get(tag, tag)
-            if tag_name == 'DateTimeOriginal':
-                timestamp = datetime.strptime(value, "%Y:%m:%d %H:%M:%S")
-                return timestamp
+            if tag in TAGS:
+                if TAGS[tag] in ['DateTime', 'DateTimeOriginal']:
+                    timestamp = datetime.strptime(value, "%Y:%m:%d %H:%M:%S")
+                    return timestamp
 
-        # If DateTimeOriginal tag is not found
-        return None
+    else:
+        raise TypeError(f"Unrecognized photo type {image_path.suffix}")
 
+    # If Date metadata is not found
+    return None
+
+
+def get_video_date(video_path):
+    import os
+    from datetime import datetime
+    from hurry.filesize import size
+    from pymediainfo import MediaInfo
+
+    # Function to read metadata from a MOV video
+    media_info = MediaInfo.parse(video_path)
+
+    for track in media_info.tracks:
+        if track.track_type == "General":
+            if track.comapplequicktimecreationdate is not None:
+                timestamp = datetime.strptime(track.comapplequicktimecreationdate,
+                                            "%Y-%m-%dT%H:%M:%S%z")
+            elif track.encoded_date is not None:
+                timestamp = datetime.strptime(track.encoded_date,
+                                            "%Y-%m-%d %H:%M:%S UTC")
+            elif track.tagged_date is not None:
+                timestamp = datetime.strptime(track.tagged_date,
+                                            "%Y-%m-%d %H:%M:%S UTC")
+            else:
+                import pudb; pudb.set_trace()
+            return timestamp
+
+    # If nothing found
+    return None
+
+
+# Function to read the EXIF date from an HEIC photo
+def get_exif_date(image_path):
+    try:
+        heif_file = pyheif.read(image_path)
+        metadata = heif_file.metadata or []
+        
+        # Look for the XML metadata
+        for meta in metadata:
+            if meta['type'] == 'Exif':
+                xml_data = meta['data'].decode('utf-8')
+                
+                # Parse the XML data
+                root = ET.fromstring(xml_data)
+                
+                # Extract the DateTimeOriginal tag value
+                namespaces = {'x': 'http://ns.adobe.com/exif/1.0/'}
+                date_time_original = root.find('.//x:DateTimeOriginal', namespaces)
+                
+                if date_time_original is not None:
+                    return date_time_original.text
+        return 'EXIF date not found'
+    except Exception as e:
+        return f'Error: {e}'
+
+# Example usage
+# print(get_exif_date('path_to_your_image.heic'))

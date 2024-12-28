@@ -162,25 +162,40 @@ def cli_add(path):
     from pathlib import Path
     import os
     import shutil
-    from .utilities import compute_image_checksum, get_photo_date
+    from .utilities import compute_photo_checksum, compute_video_checksum
+    from .utilities import get_photo_date, get_video_date
     from .config import get_global_config
+    from datetime import datetime
 
     cfg = get_global_config()
     repo_path = Path(cfg["repo"]["path"])
 
+    added_files = 0
+    duplicate_files = 0
+    total_files = 0
     for file in path:
         file_obj = Path(file)
         if file_obj.is_dir():
             path_files = os.listdir(file_obj)
             import pudb; pudb.set_trace()
 
-        # Compute the checksum of the file
-        checksum = compute_image_checksum(file_obj)
+        if file_obj.suffix in [".AVI", ".MOV"]:
+            # Compute the checksum of the file
+            checksum = compute_video_checksum(file_obj)
+            # Get the date the photo was taken
+            date = get_video_date(file_obj)
+        elif file_obj.suffix in [".JPG", ".JPEG", ".PNG", ".HEIC"]:
+            # Compute the checksum of the file
+            checksum = compute_photo_checksum(file_obj)
+            # Get the date the photo was taken
+            date = get_photo_date(file_obj)
+        else:
+            # File not recoginized as an image. Skip it.
+            print(f"{file_obj} not recognized as an image file. Skipping.")
+            continue
 
-        # Get the date the photo was taken
-        date = get_photo_date(file_obj)
         if date is None:
-            import pudb; pudb.set_trace()
+            date = datetime(1970,1,1,0,0,0)
 
         # Create new filename
         canonical_file = Path(f"{date.strftime("%y%m%d_%H%M%S")}_{checksum[:8]}{file_obj.suffix}")
@@ -189,9 +204,19 @@ def cli_add(path):
         # Rename file to the new filename
         insert_path = repo_path / canonical_folder / canonical_file
 
+        total_files += 1
         if not insert_path.exists():
             os.makedirs(repo_path / canonical_folder, exist_ok=True)
             shutil.copy2(file_obj, insert_path)
             print(f"Added {canonical_file} (from {file_obj}) to the photo repository")
+            added_files += 1
         else:
             print(f"File {canonical_file} (from {file_obj}) already exists in the repository")
+            duplicate_files += 1
+
+    print("")
+    print("Summary")
+    print("=======")
+    print(f"{added_files} out of {total_files} files added to the photo repository")
+    print(f"{duplicate_files} out of {total_files} files skipped as duplicates")
+    print(f"{total_files - (added_files+duplicate_files)} files unaccounted")
