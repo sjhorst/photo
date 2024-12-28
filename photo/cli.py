@@ -176,18 +176,20 @@ def cli_add(path):
     # Set up initial statistics
     added_files = 0
     duplicate_files = 0
+    skipped_files = 0
     total_files = 0
     first_date = datetime.now(tzla)
     last_date = datetime(1970, 1, 1, tzinfo=tzla)
 
     # Process each file
+    total_files = len(path)
     for file in path:
         file_obj = Path(file)
         if file_obj.is_dir():
             path_files = os.listdir(file_obj)
             import pudb; pudb.set_trace()
 
-        if file_obj.suffix.upper() in [".AVI", ".MOV"]:
+        if file_obj.suffix.upper() in [".AVI", ".MOV", ".MP4"]:
             # Compute the checksum of the file
             checksum = compute_video_checksum(file_obj)
             # Get the date the photo was taken
@@ -200,6 +202,7 @@ def cli_add(path):
         else:
             # File not recoginized as an image. Skip it.
             print(f"{file_obj} not recognized as an image file. Skipping.")
+            skipped_files += 1
             continue
 
         if date is None:
@@ -209,7 +212,7 @@ def cli_add(path):
         try:
             if date < first_date:
                 first_date = date
-            elif date > last_date:
+            if date > last_date:
                 last_date = date
         except:
             import pudb; pudb.set_trace()
@@ -221,7 +224,6 @@ def cli_add(path):
         # Rename file to the new filename
         insert_path = repo_path / canonical_folder / canonical_file
 
-        total_files += 1
         if not insert_path.exists():
             os.makedirs(repo_path / canonical_folder, exist_ok=True)
             shutil.copy2(file_obj, insert_path)
@@ -237,4 +239,5 @@ def cli_add(path):
     print(f"Processed {total_files} files from {first_date} to {last_date}")
     print(f"{added_files} files added to the photo repository")
     print(f"{duplicate_files} files skipped as duplicates")
-    print(f"{total_files - (added_files+duplicate_files)} files unaccounted")
+    print(f"{skipped_files} files skipped as unrecognized format")
+    print(f"{total_files - (added_files+duplicate_files+skipped_files)} files unaccounted")
