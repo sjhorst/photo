@@ -180,6 +180,8 @@ def cli_add(path):
     skipped_files = 0
     total_files = 0
     missing_date = 0
+    corrupt_files = []
+    corrupt_count = 0
     first_date = datetime.now(tzla)
     last_date = default_date
 
@@ -201,6 +203,11 @@ def cli_add(path):
             checksum = compute_photo_checksum(file_obj)
             # Get the date the photo was taken
             date = get_photo_date(file_obj)
+            if checksum is None:
+                corrupt_count += 1
+                corrupt_files.append(file_obj)
+                print(f"WARNING: {file_obj} is corrupt!")
+                continue
         else:
             # File not recoginized as an image. Skip it.
             print(f"{file_obj} not recognized as an image file. Skipping.")
@@ -241,4 +248,6 @@ def cli_add(path):
     print(f"{duplicate_files} files skipped as duplicates")
     print(f"{skipped_files} files skipped as unrecognized format")
     print(f"{missing_date} files did not have date metadata")
-    print(f"{total_files - (added_files+duplicate_files+skipped_files)} files unaccounted")
+    print(f"{corrupt_count} files were corrupt: {corrupt_files}")
+    process_sum = added_files + duplicate_files + skipped_files + corrupt_count
+    print(f"{total_files - process_sum} files unaccounted")

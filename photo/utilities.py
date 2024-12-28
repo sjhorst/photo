@@ -32,8 +32,10 @@ def compute_photo_checksum(image_path):
     #  import imageio
 
     if image_path.suffix.upper() == ".HEIC":
-        #  image = imageio.imread(image_path)
-        heif_file = pyheif.read(image_path)
+        try:
+            heif_file = pyheif.read(image_path)
+        except pyheif.error.HeifError:
+            return None
 
         # Convert the HEIC image to a Pillow Image
         image = Image.frombytes(
@@ -82,8 +84,11 @@ def get_photo_date(image_path):
     tzla = ZoneInfo("America/Los_Angeles")
 
     if image_path.suffix.upper() == ".HEIC":
-        heif_file = pyheif.read(image_path)
-        metadata = heif_file.metadata or []
+        try:
+            heif_file = pyheif.read(image_path)
+            metadata = heif_file.metadata or []
+        except pyheif.error.HeifError:
+            return None
 
         # Look for the XML metadata
         for meta in metadata:
