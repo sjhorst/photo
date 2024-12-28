@@ -166,13 +166,21 @@ def cli_add(path):
     from .utilities import get_photo_date, get_video_date
     from .config import get_global_config
     from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    tzla = ZoneInfo("America/Los_Angeles")
 
     cfg = get_global_config()
     repo_path = Path(cfg["repo"]["path"])
 
+    # Set up initial statistics
     added_files = 0
     duplicate_files = 0
     total_files = 0
+    first_date = datetime.now(tzla)
+    last_date = datetime(1970, 1, 1, tzinfo=tzla)
+
+    # Process each file
     for file in path:
         file_obj = Path(file)
         if file_obj.is_dir():
@@ -195,7 +203,16 @@ def cli_add(path):
             continue
 
         if date is None:
-            date = datetime(1970,1,1,0,0,0)
+            date = datetime(1970,1,1, tzinfo=tzla)
+
+        # Check for earliest or latest date
+        try:
+            if date < first_date:
+                first_date = date
+            elif date > last_date:
+                last_date = date
+        except:
+            import pudb; pudb.set_trace()
 
         # Create new filename
         canonical_file = Path(f"{date.strftime("%y%m%d_%H%M%S")}_{checksum[:8]}{file_obj.suffix}")
@@ -217,6 +234,7 @@ def cli_add(path):
     print("")
     print("Summary")
     print("=======")
-    print(f"{added_files} out of {total_files} files added to the photo repository")
-    print(f"{duplicate_files} out of {total_files} files skipped as duplicates")
+    print(f"Processed {total_files} files from {first_date} to {last_date}")
+    print(f"{added_files} files added to the photo repository")
+    print(f"{duplicate_files} files skipped as duplicates")
     print(f"{total_files - (added_files+duplicate_files)} files unaccounted")

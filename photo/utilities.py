@@ -75,8 +75,11 @@ def get_photo_date(image_path):
     from PIL import Image
     from PIL.ExifTags import TAGS, GPSTAGS
     from datetime import datetime
+    from zoneinfo import ZoneInfo
     import pyheif
     import piexif
+
+    tzla = ZoneInfo("America/Los_Angeles")
 
     if image_path.suffix.upper() == ".HEIC":
         heif_file = pyheif.read(image_path)
@@ -93,7 +96,9 @@ def get_photo_date(image_path):
                 if date_id in exif_dict['Exif']:
                     exif_date = exif_dict['Exif'][date_id]
                     if exif_date:
-                        return datetime.strptime(exif_date.decode("UTF-8"), "%Y:%m:%d %H:%M:%S")
+                        timestamp = datetime.strptime(exif_date.decode("UTF-8"), "%Y:%m:%d %H:%M:%S")
+                        timestamp = timestamp.replace(tzinfo=tzla)
+                        return timestamp
 
     elif image_path.suffix.upper() in [".JPG", ".PNG", ".JPEG"]:
         # Open the image file for 
@@ -106,6 +111,7 @@ def get_photo_date(image_path):
             if tag in TAGS:
                 if TAGS[tag] in ['DateTime', 'DateTimeOriginal']:
                     timestamp = datetime.strptime(value, "%Y:%m:%d %H:%M:%S")
+                    timestamp = timestamp.replace(tzinfo=tzla)
                     return timestamp
 
     else:
@@ -118,8 +124,11 @@ def get_photo_date(image_path):
 def get_video_date(video_path):
     import os
     from datetime import datetime
+    from zoneinfo import ZoneInfo
     from hurry.filesize import size
     from pymediainfo import MediaInfo
+
+    tzla = ZoneInfo("America/Los_Angeles")
 
     # Function to read metadata from a MOV video
     media_info = MediaInfo.parse(video_path)
@@ -132,40 +141,15 @@ def get_video_date(video_path):
             elif track.encoded_date is not None:
                 timestamp = datetime.strptime(track.encoded_date,
                                             "%Y-%m-%d %H:%M:%S UTC")
+                timestamp = timestamp.replace(tzinfo=tzla)
             elif track.tagged_date is not None:
                 timestamp = datetime.strptime(track.tagged_date,
                                             "%Y-%m-%d %H:%M:%S UTC")
+                timestamp = timestamp.replace(tzinfo=tzla)
             else:
-                import pudb; pudb.set_trace()
+                raise AttributeError("Unable to find creation time metadata")
             return timestamp
 
     # If nothing found
     return None
 
-
-# Function to read the EXIF date from an HEIC photo
-def get_exif_date(image_path):
-    try:
-        heif_file = pyheif.read(image_path)
-        metadata = heif_file.metadata or []
-        
-        # Look for the XML metadata
-        for meta in metadata:
-            if meta['type'] == 'Exif':
-                xml_data = meta['data'].decode('utf-8')
-                
-                # Parse the XML data
-                root = ET.fromstring(xml_data)
-                
-                # Extract the DateTimeOriginal tag value
-                namespaces = {'x': 'http://ns.adobe.com/exif/1.0/'}
-                date_time_original = root.find('.//x:DateTimeOriginal', namespaces)
-                
-                if date_time_original is not None:
-                    return date_time_original.text
-        return 'EXIF date not found'
-    except Exception as e:
-        return f'Error: {e}'
-
-# Example usage
-# print(get_exif_date('path_to_your_image.heic'))
