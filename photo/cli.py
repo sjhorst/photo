@@ -179,12 +179,12 @@ def cli_add(path):
             path_files = os.listdir(file_obj)
             import pudb; pudb.set_trace()
 
-        if file_obj.suffix in [".AVI", ".MOV"]:
+        if file_obj.suffix.upper() in [".AVI", ".MOV"]:
             # Compute the checksum of the file
             checksum = compute_video_checksum(file_obj)
             # Get the date the photo was taken
             date = get_video_date(file_obj)
-        elif file_obj.suffix in [".JPG", ".JPEG", ".PNG", ".HEIC"]:
+        elif file_obj.suffix.upper() in [".JPG", ".JPEG", ".PNG", ".HEIC"]:
             # Compute the checksum of the file
             checksum = compute_photo_checksum(file_obj)
             # Get the date the photo was taken
