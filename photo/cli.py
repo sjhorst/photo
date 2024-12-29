@@ -208,7 +208,7 @@ def cli_add(path, walk):
             # Skip hidden files (usually thumbnails)
             continue
 
-        if file_obj.suffix.upper() in [".AVI", ".MOV", ".MP4", ".M4V"]:
+        if file_obj.suffix.upper() in [".AVI", ".MOV", ".MP4", ".M4V", ".MOD"]:
             # Compute the checksum of the file
             checksum = compute_video_checksum(file_obj)
             # Get the date the photo was taken
