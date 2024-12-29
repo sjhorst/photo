@@ -28,6 +28,7 @@ def main_entry():
     proc = action.add_parser('add', help=descr, description=descr)
 
     proc.add_argument('path', nargs="*", help='The directory or filenames to process')
+    proc.add_argument('-w', '--walk', action="store_true", help='Walk the directory structure')
 
     # META action: print the meta data for a photo
     # ============================================
@@ -36,6 +37,7 @@ def main_entry():
     meta = action.add_parser('meta', help=descr, description=descr)
 
     meta.add_argument('fileglob', nargs='*', help='The filename or glob of photos or videos to show')
+    meta.add_argument('-v', '--verbose', help='List all metadata fields in the file')
 
     # VERSION action: Print the version of the software and exit
     # ==========================================================
@@ -52,7 +54,7 @@ def main_entry():
             cli_tag(args.filename, args.tags)
 
         elif args.action.lower() == 'add':
-            cli_add(args.path)
+            cli_add(args.path, args.walk)
 
         elif args.action.lower() == 'meta':
             cli_meta(args.fileglob)
@@ -149,7 +151,7 @@ def cli_tag(filename, arg_list):
     update_tags(filename, cur_tags)
 
 
-def cli_add(path):
+def cli_add(path, walk):
     """
     Add photos to the directory repository
 
@@ -162,8 +164,8 @@ def cli_add(path):
     from pathlib import Path
     import os
     import shutil
-    from .utilities import compute_photo_checksum, compute_video_checksum
-    from .utilities import get_photo_date, get_video_date
+    from .photo import get_photo_date, compute_photo_checksum
+    from .video import get_video_date, compute_video_checksum
     from .config import get_global_config
     from datetime import datetime
     from zoneinfo import ZoneInfo
@@ -184,16 +186,29 @@ def cli_add(path):
     corrupt_count = 0
     first_date = datetime.now(tzla)
     last_date = default_date
+    total_files = 0
 
     # Process each file
-    total_files = len(path)
-    for file in path:
+    if walk:
+        dir_path = Path(path[0])
+        all_files = dir_path.rglob("*")
+    else:
+        all_files = path
+
+    for file in all_files:
+        total_files += 1
         file_obj = Path(file)
         if file_obj.is_dir():
-            path_files = os.listdir(file_obj)
-            import pudb; pudb.set_trace()
+            # Skip directories
+            continue
+            #  path_files = os.listdir(file_obj)
+            #  import pudb; pudb.set_trace()
 
-        if file_obj.suffix.upper() in [".AVI", ".MOV", ".MP4"]:
+        if any(part.startswith('.') for part in file_obj.parts):
+            # Skip hidden files (usually thumbnails)
+            continue
+
+        if file_obj.suffix.upper() in [".AVI", ".MOV", ".MP4", ".M4V"]:
             # Compute the checksum of the file
             checksum = compute_video_checksum(file_obj)
             # Get the date the photo was taken
